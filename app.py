@@ -45,25 +45,37 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-ACCENT = "#4e9eff"
-MAGENTA = "#ff4e88"
-PANEL = "#121B2D"
+# Theme colors
+BG = "#080C14"          # background
+ACCENT = "#4e9eff"      # electric blue
+MAGENTA = "#ff4e88"     # pink accent
+PANEL = "#121B2D"       # card color
+
+# =====================================================
+# TITLE
+# =====================================================
+st.markdown(
+    "<h2 style='text-align:center;color:#4e9eff;'>🌀 Black Hole Accretion Intelligence System</h2>",
+    unsafe_allow_html=True
+)
+st.markdown(
+    "<p style='text-align:center;color:#9db4cf;'>Next-Gen Analytical Dashboard • Sci-Fi UI/UX • Fully Dynamic</p>",
+    unsafe_allow_html=True
+)
 
 # =====================================================
 # UPLOAD DATA
 # =====================================================
-st.markdown("<h2 style='text-align:center;color:#4e9eff;'>🌀 Black Hole Accretion Intelligence System</h2>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;color:#9db4cf;'>Next-Gen Analytical Dashboard • Sci-Fi UI/UX • Fully Dynamic</p>", unsafe_allow_html=True)
-
 uploaded = st.file_uploader("Upload Black Hole Dataset (.xlsx)", type=["xlsx"])
 
 if uploaded is None:
-    st.info("Upload the dataset to generate dashboard.")
+    st.info("Upload the Excel dataset to generate the dashboard.")
     st.stop()
 
 df = pd.read_excel(uploaded)
 df.columns = df.columns.str.strip()
 
+# convert numeric cols
 for col in df.columns:
     df[col] = pd.to_numeric(df[col], errors="ignore")
 
@@ -71,16 +83,38 @@ for col in df.columns:
 # CLASSIFICATION LOGIC
 # =====================================================
 def classify_mass(v):
-    q1, q2 = df["BlackHole_Mass_SolarMass"].quantile([0.33, 0.66])
-    return "Low Mass" if v < q1 else ("Medium Mass" if v < q2 else "High Mass")
+    try:
+        q1, q2 = df["BlackHole_Mass_SolarMass"].quantile([0.33, 0.66])
+        if v < q1:
+            return "Low Mass"
+        elif v < q2:
+            return "Medium Mass"
+        else:
+            return "High Mass"
+    except Exception:
+        return "Unknown"
 
 def classify_spin(v):
-    return "Low Spin" if v < 0.33 else ("Medium Spin" if v < 0.66 else "High Spin")
+    try:
+        if v < 0.33:
+            return "Low Spin"
+        elif v < 0.66:
+            return "Medium Spin"
+        else:
+            return "High Spin"
+    except Exception:
+        return "Unknown"
 
 def classify_edd(e):
-    if e < 0.1: return "Sub-Eddington"
-    if e <= 1.0: return "Near-Eddington"
-    return "Super-Eddington"
+    try:
+        if e < 0.1:
+            return "Sub-Eddington"
+        elif e <= 1.0:
+            return "Near-Eddington"
+        else:
+            return "Super-Eddington"
+    except Exception:
+        return "Unknown"
 
 df["Mass_Class"] = df["BlackHole_Mass_SolarMass"].apply(classify_mass)
 df["Spin_Class"] = df["Spin_Factor"].apply(classify_spin)
@@ -91,9 +125,21 @@ df["Eddington_Class"] = df["Eddington_Ratio"].apply(classify_edd)
 # =====================================================
 st.sidebar.markdown("<h3 style='color:#4e9eff;'>🔎 Filters</h3>", unsafe_allow_html=True)
 
-mass_f = st.sidebar.multiselect("Mass Category", df["Mass_Class"].unique(), df["Mass_Class"].unique())
-spin_f = st.sidebar.multiselect("Spin Category", df["Spin_Class"].unique(), df["Spin_Class"].unique())
-edd_f = st.sidebar.multiselect("Accretion Regime", df["Eddington_Class"].unique(), df["Eddington_Class"].unique())
+mass_f = st.sidebar.multiselect(
+    "Mass Category",
+    sorted(df["Mass_Class"].unique()),
+    sorted(df["Mass_Class"].unique())
+)
+spin_f = st.sidebar.multiselect(
+    "Spin Category",
+    sorted(df["Spin_Class"].unique()),
+    sorted(df["Spin_Class"].unique())
+)
+edd_f = st.sidebar.multiselect(
+    "Accretion Regime",
+    sorted(df["Eddington_Class"].unique()),
+    sorted(df["Eddington_Class"].unique())
+)
 
 filtered = df[
     df["Mass_Class"].isin(mass_f) &
@@ -107,23 +153,32 @@ filtered = df[
 k1, k2, k3, k4 = st.columns(4)
 
 with k1:
-    st.markdown("<div class='kpi'>Total Objects<br><div class='metric-value'>" +
-                str(len(filtered)) + "</div></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='kpi'>Total Objects<br><div class='metric-value'>"
+        + str(len(filtered)) + "</div></div>",
+        unsafe_allow_html=True
+    )
 
 with k2:
-    st.markdown("<div class='kpi'>Mean Mass (M☉)<br><div class='metric-value'>" +
-                f"{filtered['BlackHole_Mass_SolarMass'].mean():.2f}" + "</div></div>",
-                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='kpi'>Mean Mass (M☉)<br><div class='metric-value'>"
+        + f"{filtered['BlackHole_Mass_SolarMass'].mean():.2f}" + "</div></div>",
+        unsafe_allow_html=True
+    )
 
 with k3:
-    st.markdown("<div class='kpi'>Mean Spin<br><div class='metric-value'>" +
-                f"{filtered['Spin_Factor'].mean():.3f}" + "</div></div>",
-                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='kpi'>Mean Spin<br><div class='metric-value'>"
+        + f"{filtered['Spin_Factor'].mean():.3f}" + "</div></div>",
+        unsafe_allow_html=True
+    )
 
 with k4:
-    st.markdown("<div class='kpi'>Mean X-ray Luminosity<br><div class='metric-value'>" +
-                f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}" + "</div></div>",
-                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='kpi'>Mean X-ray Luminosity<br><div class='metric-value'>"
+        + f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}" + "</div></div>",
+        unsafe_allow_html=True
+    )
 
 st.markdown("")
 
@@ -139,13 +194,17 @@ with r1c1:
         hole=0.55,
         color_discrete_sequence=[ACCENT, MAGENTA, "#82eefd"]
     )
-    fig.update_layout(template="plotly_dark", title="Mass Class Breakdown",
-                      paper_bgcolor=BG)
+    fig.update_layout(
+        template="plotly_dark",
+        title="Mass Class Breakdown",
+        paper_bgcolor=BG
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with r1c2:
     spin_count = filtered["Spin_Class"].value_counts().reset_index()
     spin_count.columns = ["Spin_Class", "count"]
+
     fig = px.bar(
         spin_count,
         x="Spin_Class",
@@ -153,8 +212,11 @@ with r1c2:
         color="count",
         color_continuous_scale="Viridis"
     )
-    fig.update_layout(template="plotly_dark", title="Spin Class Distribution",
-                      paper_bgcolor=BG)
+    fig.update_layout(
+        template="plotly_dark",
+        title="Spin Class Distribution",
+        paper_bgcolor=BG
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
@@ -171,7 +233,11 @@ with r2c1:
         hover_data=["BlackHole_ID"],
         color_discrete_sequence=[ACCENT, MAGENTA, "#ffa94e"]
     )
-    fig.update_layout(template="plotly_dark", title="Mass vs X-ray Luminosity", paper_bgcolor=BG)
+    fig.update_layout(
+        template="plotly_dark",
+        title="Mass vs X-ray Luminosity",
+        paper_bgcolor=BG
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with r2c2:
@@ -179,9 +245,13 @@ with r2c2:
         filtered.sort_values("BlackHole_Mass_SolarMass"),
         x="BlackHole_Mass_SolarMass",
         y="Disk_Temperature_Inner_K",
-        color_discrete_sequence=[ACCENT]
+        color_discrete_sequence=[ACCENT],
+        template="plotly_dark"
     )
-    fig.update_layout(template="plotly_dark", title="Inner Disk Temperature Trend", paper_bgcolor=BG)
+    fig.update_layout(
+        title="Inner Disk Temperature Trend",
+        paper_bgcolor=BG
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
@@ -212,17 +282,27 @@ with r3c1:
     st.plotly_chart(fig, use_container_width=True)
 
 with r3c2:
-    jet_mean = filtered["Jet_Energy_erg"].mean()
-    jet_90 = df["Jet_Energy_erg"].quantile(0.90)
-    score = min(100, (jet_mean / jet_90) * 100) if jet_90 else 0
+    # Jet power gauge
+    if "Jet_Energy_erg" in filtered and not filtered["Jet_Energy_erg"].isna().all():
+        jet_mean = filtered["Jet_Energy_erg"].mean()
+        jet_90 = df["Jet_Energy_erg"].quantile(0.90)
+        score = min(100, (jet_mean / jet_90) * 100) if jet_90 else 0
+    else:
+        score = 0
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=score,
         title={"text": "Jet Power Index"},
-        gauge={"axis": {"range": [0, 100]}, "bar": {"color": MAGENTA}}
+        gauge={
+            "axis": {"range": [0, 100]},
+            "bar": {"color": MAGENTA}
+        }
     ))
-    fig.update_layout(template="plotly_dark", paper_bgcolor=BG)
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor=BG
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
