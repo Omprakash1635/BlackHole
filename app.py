@@ -3,31 +3,18 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# =====================================================
+# ----------------------------------------------------
 # PAGE CONFIG
-# =====================================================
+# ----------------------------------------------------
 st.set_page_config(
     page_title="Black Hole Accretion Dashboard",
     page_icon="🌀",
     layout="wide"
 )
 
-# =====================================================
-# DARK THEME CSS
-# =====================================================
-st.markdown("""
-    <style>
-        .stApp { background-color: #0b1220; color: #E0E6ED; }
-        .metric { background-color:#111827; padding:12px; border-radius:12px; }
-        .block-container { padding-top: 1.5rem; }
-    </style>
-""", unsafe_allow_html=True)
-
-NEON = "#00ccff"
-
-# =====================================================
+# ----------------------------------------------------
 # LOAD DATA
-# =====================================================
+# ----------------------------------------------------
 @st.cache_data
 def load_data():
     df = pd.read_excel("BlackHole_Accretion_75.xlsx")
@@ -36,51 +23,67 @@ def load_data():
 
 df = load_data()
 
-# =====================================================
-# NUMERIC CLEANING
-# =====================================================
-num_cols = [col for col in df.columns if df[col].dtype != 'O']
-for col in num_cols:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+# ----------------------------------------------------
+# CLEAN NUMERIC COLUMNS
+# ----------------------------------------------------
+for col in df.columns:
+    df[col] = pd.to_numeric(df[col], errors="ignore")
 
-# =====================================================
-# ADD CATEGORIES
-# =====================================================
+# ----------------------------------------------------
+# STYLE COLORS
+# ----------------------------------------------------
+BG = "#0b1220"
+CARD = "#111827"
+TEXT = "#E0E6ED"
+NEON = "#00ccff"
+
+st.markdown(
+    f"<style>.stApp {{ background-color:{BG}; color:{TEXT}; }}</style>",
+    unsafe_allow_html=True
+)
+
+# ----------------------------------------------------
+# ADD CLASSES
+# ----------------------------------------------------
 def classify_mass(m):
-    if pd.isna(m): return "Unknown"
-    if m < df["BlackHole_Mass_SolarMass"].quantile(0.33): return "Low Mass"
-    if m < df["BlackHole_Mass_SolarMass"].quantile(0.66): return "Medium Mass"
-    return "High Mass"
+    try:
+        q1 = df["BlackHole_Mass_SolarMass"].quantile(0.33)
+        q2 = df["BlackHole_Mass_SolarMass"].quantile(0.66)
+        if m < q1: return "Low Mass"
+        if m < q2: return "Medium Mass"
+        return "High Mass"
+    except:
+        return "Unknown"
+
+df["Mass_Class"] = df["BlackHole_Mass_SolarMass"].apply(classify_mass)
 
 def classify_spin(s):
-    if pd.isna(s): return "Unknown"
     if s < 0.3: return "Low Spin"
     if s < 0.7: return "Medium Spin"
     return "High Spin"
 
+df["Spin_Class"] = df["Spin_Factor"].apply(classify_spin)
+
 def classify_edd(e):
-    if pd.isna(e): return "Unknown"
     if e < 0.1: return "Sub-Eddington"
     if e <= 1.0: return "Near-Eddington"
     return "Super-Eddington"
 
-df["Mass_Class"] = df["BlackHole_Mass_SolarMass"].apply(classify_mass)
-df["Spin_Class"] = df["Spin_Factor"].apply(classify_spin)
 df["Eddington_Class"] = df["Eddington_Ratio"].apply(classify_edd)
 
-# =====================================================
+# ----------------------------------------------------
 # SIDEBAR FILTERS
-# =====================================================
+# ----------------------------------------------------
 st.sidebar.header("🔭 Filters")
 
 mass_f = st.sidebar.multiselect(
-    "Mass Class", sorted(df["Mass_Class"].unique()), sorted(df["Mass_Class"].unique())
+    "Mass Class", df["Mass_Class"].unique(), df["Mass_Class"].unique()
 )
 spin_f = st.sidebar.multiselect(
-    "Spin Class", sorted(df["Spin_Class"].unique()), sorted(df["Spin_Class"].unique())
+    "Spin Class", df["Spin_Class"].unique(), df["Spin_Class"].unique()
 )
 edd_f = st.sidebar.multiselect(
-    "Eddington Regime", sorted(df["Eddington_Class"].unique()), sorted(df["Eddington_Class"].unique())
+    "Eddington Regime", df["Eddington_Class"].unique(), df["Eddington_Class"].unique()
 )
 
 filtered = df[
@@ -89,33 +92,29 @@ filtered = df[
     df["Eddington_Class"].isin(edd_f)
 ]
 
-# =====================================================
+# ----------------------------------------------------
 # TITLE
-# =====================================================
+# ----------------------------------------------------
 st.markdown(
     f"<h2 style='color:{NEON}; text-align:center;'>Black Hole Accretion Analytics Dashboard</h2>",
     unsafe_allow_html=True
 )
-st.markdown(
-    "<p style='color:#9ca3af;text-align:center;'>Interactive astrophysics dashboard for accretion disk simulations.</p>",
-    unsafe_allow_html=True
-)
 
-# =====================================================
-# KPI CARDS
-# =====================================================
-col1, col2, col3, col4 = st.columns(4)
+# ----------------------------------------------------
+# KPI ROW
+# ----------------------------------------------------
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric("Total Objects", len(filtered))
-col2.metric("Avg Mass (M☉)", f"{filtered['BlackHole_Mass_SolarMass'].mean():.2f}")
-col3.metric("Avg Spin", f"{filtered['Spin_Factor'].mean():.3f}")
-col4.metric("Avg X-ray Luminosity", f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}")
+c1.metric("Total Objects", len(filtered))
+c2.metric("Avg Mass (M☉)", f"{filtered['BlackHole_Mass_SolarMass'].mean():.2f}")
+c3.metric("Avg Spin", f"{filtered['Spin_Factor'].mean():.3f}")
+c4.metric("Avg X-ray Luminosity", f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}")
 
 st.markdown("---")
 
-# =====================================================
-# ROW 1 – DONUT / BAR / HISTOGRAM
-# =====================================================
+# ----------------------------------------------------
+# ROW 1 — DONUT / BAR / HIST
+# ----------------------------------------------------
 r1c1, r1c2, r1c3 = st.columns(3)
 
 with r1c1:
@@ -147,9 +146,9 @@ with r1c3:
     fig.update_layout(title="Eddington Ratio Distribution", template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-# =====================================================
-# ROW 2 – SCATTER / LINE
-# =====================================================
+# ----------------------------------------------------
+# ROW 2 — SCATTER / LINE
+# ----------------------------------------------------
 r2c1, r2c2 = st.columns(2)
 
 with r2c1:
@@ -175,9 +174,9 @@ with r2c2:
     fig.update_layout(title="Inner Disk Temperature vs Mass")
     st.plotly_chart(fig, use_container_width=True)
 
-# =====================================================
-# ROW 3 – RADAR / GAUGE
-# =====================================================
+# ----------------------------------------------------
+# ROW 3 — RADAR + GAUGE
+# ----------------------------------------------------
 r3c1, r3c2 = st.columns(2)
 
 with r3c1:
@@ -197,10 +196,8 @@ with r3c1:
     ))
 
     fig.update_layout(
-        template="plotly_dark",
         title="Accretion Physics Radar",
-        polar=dict(bgcolor="#111827"),
-        paper_bgcolor="#0b1220"
+        template="plotly_dark"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -213,20 +210,15 @@ with r3c2:
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=score,
-        title={"text": "Jet Power Index", "font": {"color": "white"}},
-        gauge={
-            "axis": {"range": [0, 100]},
-            "bar": {"color": NEON},
-            "bgcolor": "#111827",
-            "borderwidth": 2,
-        }
+        title={"text": "Jet Power Index"},
+        gauge={"axis": {"range": [0, 100]}, "bar": {"color": NEON}}
     ))
 
-    fig.update_layout(template="plotly_dark", paper_bgcolor="#0b1220")
+    fig.update_layout(template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
-# =====================================================
-# RAW DATA TABLE
-# =====================================================
+# ----------------------------------------------------
+# DATA TABLE
+# ----------------------------------------------------
 with st.expander("Show Filtered Dataset"):
     st.dataframe(filtered)
