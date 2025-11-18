@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # =====================================================
-# DARK THEME CUSTOM CSS
+# DARK THEME CSS
 # =====================================================
 st.markdown("""
     <style>
@@ -37,14 +37,14 @@ def load_data():
 df = load_data()
 
 # =====================================================
-# CLEAN NUMERIC COLUMNS
+# NUMERIC CLEANING
 # =====================================================
 num_cols = [col for col in df.columns if df[col].dtype != 'O']
 for col in num_cols:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
 # =====================================================
-# ADD CATEGORIZED COLUMNS
+# ADD CATEGORIES
 # =====================================================
 def classify_mass(m):
     if pd.isna(m): return "Unknown"
@@ -92,11 +92,14 @@ filtered = df[
 # =====================================================
 # TITLE
 # =====================================================
-st.markdown(f"<h2 style='color:{NEON}'>Black Hole Accretion Analytics Dashboard</h2>", 
-            unsafe_allow_html=True)
-
-st.markdown("<p style='color:#9ca3af'>Interactive astrophysics dashboard for accretion disk simulations.</p>", 
-            unsafe_allow_html=True)
+st.markdown(
+    f"<h2 style='color:{NEON}; text-align:center;'>Black Hole Accretion Analytics Dashboard</h2>",
+    unsafe_allow_html=True
+)
+st.markdown(
+    "<p style='color:#9ca3af;text-align:center;'>Interactive astrophysics dashboard for accretion disk simulations.</p>",
+    unsafe_allow_html=True
+)
 
 # =====================================================
 # KPI CARDS
@@ -106,18 +109,20 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Objects", len(filtered))
 col2.metric("Avg Mass (M☉)", f"{filtered['BlackHole_Mass_SolarMass'].mean():.2f}")
 col3.metric("Avg Spin", f"{filtered['Spin_Factor'].mean():.3f}")
-col4.metric("Avg Luminosity", f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}")
+col4.metric("Avg X-ray Luminosity", f"{filtered['Xray_Luminosity_erg_s'].mean():.2e}")
 
 st.markdown("---")
 
 # =====================================================
-# ROW 1 – DONUT, BAR, HIST
+# ROW 1 – DONUT / BAR / HISTOGRAM
 # =====================================================
 r1c1, r1c2, r1c3 = st.columns(3)
 
 with r1c1:
     fig = px.pie(
-        filtered, names="Mass_Class", hole=0.55,
+        filtered,
+        names="Mass_Class",
+        hole=0.55,
         color_discrete_sequence=[NEON, "#3b82f6", "#06b6d4"]
     )
     fig.update_layout(title="Mass Class Distribution", template="plotly_dark")
@@ -127,7 +132,7 @@ with r1c2:
     spin_count = filtered["Spin_Class"].value_counts().reset_index()
     spin_count.columns = ["Spin_Class", "count"]
     fig = px.bar(
-        spin_count, x="Spin_Class", y="count", 
+        spin_count, x="Spin_Class", y="count",
         color="count", color_continuous_scale="Blues"
     )
     fig.update_layout(title="Spin Class Distribution", template="plotly_dark")
@@ -135,14 +140,15 @@ with r1c2:
 
 with r1c3:
     fig = px.histogram(
-        filtered, x="Eddington_Ratio", nbins=15,
+        filtered,
+        x="Eddington_Ratio", nbins=15,
         color_discrete_sequence=[NEON]
     )
     fig.update_layout(title="Eddington Ratio Distribution", template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
-# ROW 2 – SCATTER + LINE
+# ROW 2 – SCATTER / LINE
 # =====================================================
 r2c1, r2c2 = st.columns(2)
 
@@ -170,7 +176,7 @@ with r2c2:
     st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
-# ROW 3 – RADAR + GAUGE
+# ROW 3 – RADAR / GAUGE
 # =====================================================
 r3c1, r3c2 = st.columns(2)
 
@@ -180,7 +186,8 @@ with r3c1:
         "Radiation_Pressure", "Relativistic_Beaming_Factor",
         "Hardness_Ratio", "Eddington_Ratio"
     ]
-    radar_vals = [filtered[c].mean() for c in radar_cols]
+    radar_vals = [filtered[c].mean() if c in filtered else 0 for c in radar_cols]
+
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
         r=radar_vals,
@@ -188,5 +195,38 @@ with r3c1:
         fill="toself",
         line_color=NEON
     ))
-    fig.update_layout(template="plotly_dark", title="Accretion Physics Radar")
-    st.plotly_chart(fig_
+
+    fig.update_layout(
+        template="plotly_dark",
+        title="Accretion Physics Radar",
+        polar=dict(bgcolor="#111827"),
+        paper_bgcolor="#0b1220"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+with r3c2:
+    jet_mean = filtered["Jet_Energy_erg"].mean()
+    jet_90 = df["Jet_Energy_erg"].quantile(0.9)
+    score = min(100, (jet_mean / jet_90) * 100) if jet_90 else 0
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=score,
+        title={"text": "Jet Power Index", "font": {"color": "white"}},
+        gauge={
+            "axis": {"range": [0, 100]},
+            "bar": {"color": NEON},
+            "bgcolor": "#111827",
+            "borderwidth": 2,
+        }
+    ))
+
+    fig.update_layout(template="plotly_dark", paper_bgcolor="#0b1220")
+    st.plotly_chart(fig, use_container_width=True)
+
+# =====================================================
+# RAW DATA TABLE
+# =====================================================
+with st.expander("Show Filtered Dataset"):
+    st.dataframe(filtered)
