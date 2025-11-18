@@ -12,38 +12,45 @@ st.set_page_config(
     layout="wide"
 )
 
-# ----------------------------------------------------
-# LOAD DATA
-# ----------------------------------------------------
-@st.cache_data
-def load_data():
-    df = pd.read_excel("BlackHole_Accretion_75.xlsx")
-    df.columns = df.columns.str.strip()
-    return df
-
-df = load_data()
-
-# ----------------------------------------------------
-# CLEAN NUMERIC COLUMNS
-# ----------------------------------------------------
-for col in df.columns:
-    df[col] = pd.to_numeric(df[col], errors="ignore")
-
-# ----------------------------------------------------
-# STYLE COLORS
-# ----------------------------------------------------
-BG = "#0b1220"
-CARD = "#111827"
-TEXT = "#E0E6ED"
 NEON = "#00ccff"
+BG = "#0b1220"
+TEXT = "#E0E6ED"
 
+# DARK CSS
 st.markdown(
-    f"<style>.stApp {{ background-color:{BG}; color:{TEXT}; }}</style>",
+    f"<style>.stApp {{ background-color:{BG}; color:{TEXT}; }} </style>",
     unsafe_allow_html=True
 )
 
 # ----------------------------------------------------
-# ADD CLASSES
+# TITLE
+# ----------------------------------------------------
+st.markdown(
+    f"<h2 style='color:{NEON};text-align:center;'>Black Hole Accretion Analytics Dashboard</h2>",
+    unsafe_allow_html=True
+)
+
+# ----------------------------------------------------
+# FILE UPLOADER
+# ----------------------------------------------------
+uploaded = st.file_uploader("Upload your Excel dataset", type=["xlsx"])
+
+if uploaded is None:
+    st.info("Please upload your **BlackHole_Accretion_75.xlsx** file to continue.")
+    st.stop()
+
+# ----------------------------------------------------
+# LOAD DATA
+# ----------------------------------------------------
+df = pd.read_excel(uploaded)
+df.columns = df.columns.str.strip()
+
+# Convert numeric columns cleanly
+for col in df.columns:
+    df[col] = pd.to_numeric(df[col], errors="ignore")
+
+# ----------------------------------------------------
+# CLASSIFICATION FUNCTIONS
 # ----------------------------------------------------
 def classify_mass(m):
     try:
@@ -55,20 +62,24 @@ def classify_mass(m):
     except:
         return "Unknown"
 
-df["Mass_Class"] = df["BlackHole_Mass_SolarMass"].apply(classify_mass)
-
 def classify_spin(s):
-    if s < 0.3: return "Low Spin"
-    if s < 0.7: return "Medium Spin"
-    return "High Spin"
-
-df["Spin_Class"] = df["Spin_Factor"].apply(classify_spin)
+    try:
+        if s < 0.3: return "Low Spin"
+        if s < 0.7: return "Medium Spin"
+        return "High Spin"
+    except:
+        return "Unknown"
 
 def classify_edd(e):
-    if e < 0.1: return "Sub-Eddington"
-    if e <= 1.0: return "Near-Eddington"
-    return "Super-Eddington"
+    try:
+        if e < 0.1: return "Sub-Eddington"
+        if e <= 1.0: return "Near-Eddington"
+        return "Super-Eddington"
+    except:
+        return "Unknown"
 
+df["Mass_Class"] = df["BlackHole_Mass_SolarMass"].apply(classify_mass)
+df["Spin_Class"] = df["Spin_Factor"].apply(classify_spin)
 df["Eddington_Class"] = df["Eddington_Ratio"].apply(classify_edd)
 
 # ----------------------------------------------------
@@ -93,15 +104,7 @@ filtered = df[
 ]
 
 # ----------------------------------------------------
-# TITLE
-# ----------------------------------------------------
-st.markdown(
-    f"<h2 style='color:{NEON}; text-align:center;'>Black Hole Accretion Analytics Dashboard</h2>",
-    unsafe_allow_html=True
-)
-
-# ----------------------------------------------------
-# KPI ROW
+# KPI CARDS
 # ----------------------------------------------------
 c1, c2, c3, c4 = st.columns(4)
 
@@ -113,7 +116,7 @@ c4.metric("Avg X-ray Luminosity", f"{filtered['Xray_Luminosity_erg_s'].mean():.2
 st.markdown("---")
 
 # ----------------------------------------------------
-# ROW 1 — DONUT / BAR / HIST
+# ROW 1 — DONUT + BAR + HISTOGRAM
 # ----------------------------------------------------
 r1c1, r1c2, r1c3 = st.columns(3)
 
@@ -130,6 +133,7 @@ with r1c1:
 with r1c2:
     spin_count = filtered["Spin_Class"].value_counts().reset_index()
     spin_count.columns = ["Spin_Class", "count"]
+
     fig = px.bar(
         spin_count, x="Spin_Class", y="count",
         color="count", color_continuous_scale="Blues"
@@ -147,7 +151,7 @@ with r1c3:
     st.plotly_chart(fig, use_container_width=True)
 
 # ----------------------------------------------------
-# ROW 2 — SCATTER / LINE
+# ROW 2 — SCATTER + LINE
 # ----------------------------------------------------
 r2c1, r2c2 = st.columns(2)
 
@@ -196,10 +200,9 @@ with r3c1:
     ))
 
     fig.update_layout(
-        title="Accretion Physics Radar",
-        template="plotly_dark"
+        template="plotly_dark",
+        title="Accretion Physics Radar"
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
 with r3c2:
